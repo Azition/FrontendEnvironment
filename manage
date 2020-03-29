@@ -1,0 +1,240 @@
+#!/bin/bash
+
+COMMAND="$1"
+DOCKER_COMPOSE=$(which docker-compose)
+OPENSSL=$(which openssl)
+ENV=.env
+
+# Directories
+COMMON_DIR=./frontend
+APP_DIR="$COMMON_DIR/app"
+BUILD="$COMMON_DIR/build"
+
+# Files
+GULP_FILE="$COMMON_DIR/gulpfile.js"
+PACKAGE_JSON="$COMMON_DIR/package.json"
+
+# Base64 file content
+GULP_FILE_BASE64="
+dmFyIGd1bHAgPSByZXF1aXJlKCdndWxwJyksCglsb2dnZXIgPSByZXF1aXJlKCdn
+dWxwbG9nJyksCglzYXNzID0gcmVxdWlyZSgnZ3VscC1zYXNzJyksCgl1Z2xpZnkg
+PSByZXF1aXJlKCdndWxwLXVnbGlmeScpLAoJY29uY2F0ID0gcmVxdWlyZSgnZ3Vs
+cC1jb25jYXQnKSwKCWRlbGV0ZUl0ZW1zID0gcmVxdWlyZSgnZGVsJyksCgljb25u
+ZWN0ID0gcmVxdWlyZSgnZ3VscC1jb25uZWN0Jyk7CgpzYXNzLmNvbXBpbGVyID0g
+cmVxdWlyZSgnbm9kZS1zYXNzJyk7Cgp2YXIganNTb3VyY2VzID0gWydhcHAvanMv
+KiovKi5qcyddLAogICAgc2Fzc1NvdXJjZXMgPSBbJ2FwcC9zdHlsZS8qKi8qLnNj
+c3MnXSwKICAgIGh0bWxTb3VyY2VzID0gWydhcHAvKi5odG1sJ10sCiAgICBmb250
+U291cmNlcyA9IFsnYXBwL2ZvbnRzLyoqLyonXSwKICAgIGltZ1NvdXJjZXMgPSBb
+J2FwcC9pbWFnZXMvKiovKiddLAogICAgb3V0cHV0RGlyID0gJ2J1aWxkJywKICAg
+IHNjc3NBcHBEaXIgPSAnYXBwL3N0eWxlJywKICAgIGZvbnRCdWlsZERpciA9IG91
+dHB1dERpciArICcvZm9udHMnLAogICAgaW1nQnVpbGREaXIgPSBvdXRwdXREaXIg
+KyAnL2ltZycsCiAgICBjc3NCdWlsZERpciA9IG91dHB1dERpciArICcvY3NzJywK
+ICAgIGpzQnVpbGREaXIgPSBvdXRwdXREaXIgKyAnL2pzJzsKCnZhciBnZXRNb2R1
+bGUgPSBmdW5jdGlvbihuYW1lKSB7CglyZXR1cm4gJ25vZGVfbW9kdWxlcy8nICsg
+bmFtZTsgCn0KCnZhciBjbGVhbiA9IGZ1bmN0aW9uKCkgewoJcmV0dXJuIGRlbGV0
+ZUl0ZW1zKFtvdXRwdXREaXIrJy8qJ10pOwp9Cgp2YXIgc2VydmVyID0gZnVuY3Rp
+b24oY2IpIHsKCWNvbm5lY3Quc2VydmVyKHsKCQlyb290OiBvdXRwdXREaXIsCgkJ
+bGl2ZXJlbG9hZDogdHJ1ZSwKCQlwb3J0OiA5MDAwLAoJCWhvc3Q6ICcwLjAuMC4w
+JwoJfSk7CgljYigpOwp9OwoKdmFyIHdhdGNoUGx1Z2lucyA9IGZ1bmN0aW9uKGNi
+KSB7CglndWxwLndhdGNoKGpzU291cmNlcywgZ3VscC5zZXJpZXMoanMpKTsKCWd1
+bHAud2F0Y2goc2Fzc1NvdXJjZXMsIGd1bHAuc2VyaWVzKHNjc3MpKTsKCWd1bHAu
+d2F0Y2goaHRtbFNvdXJjZXMsIGd1bHAuc2VyaWVzKGh0bWwpKTsKCWd1bHAud2F0
+Y2goZm9udFNvdXJjZXMsIGd1bHAuc2VyaWVzKGZvbnRzKSk7CglndWxwLndhdGNo
+KGltZ1NvdXJjZXMsIGd1bHAuc2VyaWVzKGltZykpOwoJY2IoKTsKfQoKdmFyIHNj
+c3MgPSBmdW5jdGlvbigpIHsKCXJldHVybiBndWxwLnNyYyhzYXNzU291cmNlcykK
+CQkucGlwZShzYXNzKHtzdHlsZTogJ2V4cGFuZGVkJ30pKQoJCQkub24oJ2Vycm9y
+JywgbG9nZ2VyLmVycm9yKQoJCS5waXBlKGd1bHAuZGVzdChjc3NCdWlsZERpcikp
+CgkJLnBpcGUoY29ubmVjdC5yZWxvYWQoKSk7Cn0KCnZhciBjc3MgPSBmdW5jdGlv
+bigpIHsKCXJldHVybiBndWxwLnNyYyhbCgkJCWdldE1vZHVsZSgnbm9ybWFsaXpl
+LmNzcy9ub3JtYWxpemUuY3NzJykKCQldKQoJCS5waXBlKGNvbmNhdCgnX2xpYnMu
+c2NzcycpKQoJCS5waXBlKGd1bHAuZGVzdChzY3NzQXBwRGlyKSkKCQkucGlwZShj
+b25uZWN0LnJlbG9hZCgpKTsKfQoKdmFyIGZvbnRzID0gZnVuY3Rpb24oKSB7Cgly
+ZXR1cm4gZ3VscC5zcmMoZm9udFNvdXJjZXMpCgkJLnBpcGUoZ3VscC5kZXN0KGZv
+bnRCdWlsZERpcikpOwp9Cgp2YXIgaW1nID0gZnVuY3Rpb24oKSB7CglyZXR1cm4g
+Z3VscC5zcmMoaW1nU291cmNlcykKCQkucGlwZShndWxwLmRlc3QoaW1nQnVpbGRE
+aXIpKTsKfQoKdmFyIGpzID0gZnVuY3Rpb24oKSB7CglyZXR1cm4gZ3VscC5zcmMo
+anNTb3VyY2VzKQoJCS5waXBlKHVnbGlmeSgpKQoJCS5waXBlKGNvbmNhdCgnc2Ny
+aXB0LmpzJykpCgkJLnBpcGUoZ3VscC5kZXN0KGpzQnVpbGREaXIpKQoJCS5waXBl
+KGNvbm5lY3QucmVsb2FkKCkpCn0KCnZhciBodG1sID0gZnVuY3Rpb24oKSB7Cgly
+ZXR1cm4gZ3VscC5zcmMoaHRtbFNvdXJjZXMpCgkJLnBpcGUoZ3VscC5kZXN0KG91
+dHB1dERpcikpCgkJLnBpcGUoY29ubmVjdC5yZWxvYWQoKSkKfQoKZXhwb3J0cy5k
+ZWZhdWx0ID0gZ3VscC5zZXJpZXMoCgljbGVhbiwKCWNzcywKCWd1bHAucGFyYWxs
+ZWwoCgkJaHRtbCwKCQlzY3NzLAoJCWZvbnRzLAoJCWpzLAoJCWltZywKCQlzZXJ2
+ZXIKCSksIAoJd2F0Y2hQbHVnaW5zCik7"
+
+PACKAGE_JSON_FILE_BASE64="
+ewogICJuYW1lIjogImZyb250ZW5kX2Vudmlyb25tZW50IiwKICAidmVyc2lvbiI6
+ICIxLjAuMCIsCiAgImRlc2NyaXB0aW9uIjogIlByb2plY3QgZm9yIGRlcGxveW1l
+bnQgZnJvbnRlbmQgZW52aXJvbm1lbnQiLAogICJtYWluIjogImluZGV4LmpzIiwK
+ICAic2NyaXB0cyI6IHsKICAgICJ0ZXN0IjogImVjaG8gXCJFcnJvcjogbm8gdGVz
+dCBzcGVjaWZpZWRcIiAmJiBleGl0IDEiCiAgfSwKICAicmVwb3NpdG9yeSI6IHsK
+ICAgICJ0eXBlIjogImdpdCIsCiAgICAidXJsIjogImdpdCtzc2g6Ly9naXRAZ2l0
+aHViLmNvbS9Beml0aW9uL0Zyb250ZW5kRW52aXJvbm1lbnQuZ2l0IgogIH0sCiAg
+ImtleXdvcmRzIjogWwogICAgImZyb250ZW5kIiwKICAgICJndWxwIgogIF0sCiAg
+ImF1dGhvciI6ICJBemF0IEthemFldiIsCiAgImxpY2Vuc2UiOiAiSVNDIiwKICAi
+YnVncyI6IHsKICAgICJ1cmwiOiAiaHR0cHM6Ly9naXRodWIuY29tL0F6aXRpb24v
+RnJvbnRlbmRFbnZpcm9ubWVudC9pc3N1ZXMiCiAgfSwKICAiaG9tZXBhZ2UiOiAi
+aHR0cHM6Ly9naXRodWIuY29tL0F6aXRpb24vRnJvbnRlbmRFbnZpcm9ubWVudCNy
+ZWFkbWUiLAogICJkZXBlbmRlbmNpZXMiOiB7CiAgICAibm9ybWFsaXplLmNzcyI6
+ICJsYXRlc3QiLAogICAgImRlbCI6ICJsYXRlc3QiCiAgfSwKICAiZGV2RGVwZW5k
+ZW5jaWVzIjogewogICAgImd1bHAiOiAibGF0ZXN0IiwKICAgICJndWxwbG9nIjog
+ImxhdGVzdCIsCiAgICAibm9kZS1zYXNzIjogImxhdGVzdCIsCiAgICAiZ3VscC1z
+YXNzIjogImxhdGVzdCIsCiAgICAiZ3VscC11Z2xpZnkiOiAibGF0ZXN0IiwKICAg
+ICJndWxwLWNvbmNhdCI6ICJsYXRlc3QiLAogICAgImd1bHAtY29ubmVjdCI6ICJs
+YXRlc3QiCiAgfQp9Cg=="
+
+menu() {	
+	echo 
+	echo -e "Формат: ./manage.sh [команда]\n"
+	echo "Команды:"
+	echo "  init    		- инициализация файлов окружения"
+	echo "  clean   		- очищает выходные файлы"
+	echo "  status  		- выводит статус контейнера"
+	echo "  shell   		- открыть терминал внутри контейнера"
+	echo "  log     		- отображает логи контейнера"
+	echo "  build   		- сборка образа контейнера"
+	echo "  up      		- запуск контейнеров"
+	echo "  down    		- отключение и удаление контейнера"
+	echo "  restart 		- перезапуск контейнера"
+	echo "  docker-install	- установка docker и docker-compose"
+	echo
+}
+
+is_exist_gulp() {
+	if [ -e "$GULP_FILE" ]; then
+		return 0
+	fi
+	return 1
+}
+
+is_exist_package_json() {
+	if [ -e "$PACKAGE_JSON" ]; then
+		return 0
+	fi
+	return 1	
+}
+
+create_if_not_exist_frontend() {
+	if [ ! -d "$COMMON_DIR" ]; then
+		mkdir "$COMMON_DIR"
+	fi
+}
+
+init_gulpfile_file() {
+	if is_exist_gulp; then
+		return 0
+	fi
+
+	echo -e "$GULP_FILE_BASE64" | $OPENSSL enc -base64 -d > "$GULP_FILE"
+	echo "gulp файл создан"
+
+	for dir in js style fonts images; do
+		mkdir -p "$APP_DIR/$dir"
+		echo "$APP_DIR/$dir создан"
+	done
+}
+
+init_package_json() {
+	if is_exist_package_json; then
+		return 0
+	fi
+
+	echo -e "$PACKAGE_JSON_FILE_BASE64" | $OPENSSL enc -base64 -d > "$PACKAGE_JSON"
+	echo "package.json создан"
+}
+
+init() {
+	if ! [ -e $ENV ]; then
+		touch $ENV
+		echo "HTTP_PORT=9000" > $ENV 
+	fi
+	create_if_not_exist_frontend
+	init_package_json
+	init_gulpfile_file
+}
+
+check_docker_compose() {
+	if [ "$DOCKER_COMPOSE" == "" ]; then
+		return 0
+	fi
+	return 1
+}
+
+exit_if_not_exist_docker_compose() {
+	if check_docker_compose; then
+		error "docker-compose is not exist"
+		exit 1
+	fi
+}
+
+docker_install() {
+	sudo curl https://get.docker.com/ > /tmp/installer.sh
+	sudo chmod u+x /tmp/installer.sh
+	sudo /tmp/installer.sh
+
+	sudo curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+	sudo chmod +x /usr/local/bin/docker-compose
+
+	sudo usermod -aG docker vagrant
+}
+
+error() {
+	echo "Error: $1"
+}
+
+case $COMMAND in
+	init)
+		echo "Инициализация окружения"
+		init
+		echo "Инициализация завершена"
+		exit 0
+		;;
+	clean)
+		echo "Очистка файлов"
+		rm -fr $BUILD
+		exit 0
+		;;
+	status)
+		exit_if_not_exist_docker_compose
+		$DOCKER_COMPOSE ps
+		exit 0
+		;;
+	shell)
+		echo "Вход в контейнер"
+		$DOCKER_COMPOSE exec gulp /bin/bash
+		exit 0
+		;;
+	build)
+		exit_if_not_exist_docker_compose
+		$DOCKER_COMPOSE build
+		exit 0
+		;;
+	up)
+		exit_if_not_exist_docker_compose
+		init
+		$DOCKER_COMPOSE up -d
+		exit 0
+		;;
+	down)
+		exit_if_not_exist_docker_compose
+		$DOCKER_COMPOSE down
+		exit 0
+		;;
+	log)
+		exit_if_not_exist_docker_compose
+		$DOCKER_COMPOSE logs
+		exit 0
+		;;
+	restart)
+		exit_if_not_exist_docker_compose
+		$DOCKER_COMPOSE restart
+		exit 0
+		;;
+	docker-install)
+		docker_install
+		exit 0
+		;;
+	*)
+		menu
+		exit 0
+esac	

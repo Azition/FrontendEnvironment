@@ -1,0 +1,7 @@
+*/node_modules
+*/package-lock.json
+*/build
+*/app
+.env
+frontend/gulpfile.js
+frontend/package.json

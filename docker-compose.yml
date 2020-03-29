@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  gulp:
+    build:
+      context: .
+      dockerfile: dockerfile.gulp
+    volumes:
+      - ./frontend/build:/frontend/build
+      - ./frontend/app:/frontend/app
+    ports:
+      - ${HTTP_PORT}:9000
+      - 35729:35729

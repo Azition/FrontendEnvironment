@@ -1,0 +1,13 @@
+FROM node:13
+RUN mkdir /frontend
+WORKDIR /frontend
+
+RUN npm install gulp --global
+
+COPY ./frontend/package.json /frontend/package.json
+
+RUN npm install
+
+COPY ./frontend/gulpfile.js /frontend/gulpfile.js
+
+ENTRYPOINT ["gulp"]
